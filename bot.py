@@ -79,6 +79,14 @@ async def on_message(message):
         pass
     else:
         return
+    numbers=False
+    for letter in message.content:
+        if 57>=ord(letter)>=48:
+            numbers=True
+        if numbers:
+            break
+    if not numbers:
+        return
     for msg in message.content.split():
         if len(msg)>4:
             return
