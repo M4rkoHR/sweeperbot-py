@@ -9,11 +9,14 @@ from discord.ext import commands
 if settings.usePostgres:
     from db_interface import backup, restore
     restore()
+    
 intents = discord.Intents(messages=True, guilds=True, members=True)
-client = commands.Bot(command_prefix = 'ms!', intents=intents, case_insensitive=True)
+client = commands.Bot(command_prefix = 'ms!', intents=intents, case_insensitive=True, help_command=None)
 minesweeperChannel={}
 games={}
 ownerdm=None
+
+
 
 @client.event
 async def on_ready():
@@ -31,6 +34,25 @@ async def on_ready():
     except:
         await ownerdm.send('minesweeperChannel.json not found')
     print("Done")
+
+
+@client.command(brief='Help command')
+async def help(ctx, *, command=None):
+    embed=discord.Embed(colour=0xF04747,
+                        title="SweeperBot Help",
+                        description="[FIELD] example: A1, E5, J10, f7, g3\n `|` between commands displays multiple ways of typing it",
+                        url="https://wikibot.tech/SweeperBot")
+    embed.add_field(name="ms!start|game `width` `height` `mine count`", value="Starts a minesweeper game, if values left blank initializes a game with all values set to 10", inline=True)
+    embed.add_field(name="ms!addChannel|channel|setChannel `#channel`", value="Enables minesweeper in `#channel`, disabled by default", inline=True)
+    embed.add_field(name="ms!removeChannel|disableChannel `#channel`", value="Disables minesweeper in `#channel`", inline=True)
+    embed.add_field(name="[FIELD]", value="Opens [FIELD] if you have an ongoing game and the tile is closed", inline=True)
+    embed.add_field(name="![FIELD] | [FIELD]!", value="Flags [FIELD], you are unable to open it by mistake, use .[FIELD] | [FIELD]. to unflag it", inline=True)
+    embed.add_field(name=".[FIELD] | [FIELD].", value="Unmark [FIELD] from question mark or flag", inline=True)
+    embed.add_field(name="?[FIELD] | [FIELD]?", value="Mark [FIELD] as question mark, you are unable to open it by mistake, but it doesen't use flag counter", inline=True)
+    embed.add_field(name="@[FIELD] | [FIELD]@", value="If the field is a number and number of marked(flagged or question-marked) tiles surrounding it matches or exceeds it's value, it will open all other tiles surrounding it", inline=True)
+    embed.add_field(name="Multiple Commands", value="You can send multiple commands simultaneously, example: `F5! F6@ H7! I7 A1. !E4 @E6 D3 .D7`", inline=True)
+    embed.set_footer(text="Invite bot: https://wikibot.tech/SweeperBot")
+    await ctx.send(embed=embed)
 
 
 @client.command(aliases=['start', 'game'], brief='Minesweeper duh')
@@ -52,9 +74,11 @@ async def _start(ctx, width=10, height=10, mines=10):
     embed=discord.Embed(title="Minesweeper")
     filename=str(minefield)
     embed.set_image(url="attachment://{filename}".format(filename=filename))
-    games[str(ctx.author.id)]={ "gameObject": minefield }
     file=discord.File("{filename}".format(filename=filename))
-    await ctx.send(file=file, embed=embed)
+    games[str(ctx.author.id)]={ "gameObject": minefield,
+                                "message": await ctx.send(file=file, embed=embed),
+                                "timeStart": time.time()
+    }
 
 @client.command(aliases=['addchannel', 'channel', 'setchannel'], brief='Set minesweeper channel')
 async def _addChannel(ctx, *, channel):
@@ -93,42 +117,35 @@ async def on_message(message):
     if games[str(message.author.id)]["gameObject"].gameOver:
         await message.channel.send("Game over lol, use ms!start to make a new game")
         return
+    specialOperation={
+        "!": games[str(message.author.id)]["gameObject"].flagField,
+        "?": games[str(message.author.id)]["gameObject"].questionMark,
+        ".": games[str(message.author.id)]["gameObject"].clearMarking,
+        "@": games[str(message.author.id)]["gameObject"].forceOpen
+    }
     for msg in message.content.split():
         start=0
         end=len(msg)
         specialIndex=None
-        if "?" in msg or "!" in msg or "." in msg:
-            if ("?" in msg and "!" in msg) or ("?" in msg and "." in msg) or ("!" in msg and "." in msg):
-                continue
-            if msg[0]=="?":
+        specialOp=None
+        for key in specialOperation:
+            if msg[0]==key:
                 specialIndex=0
                 start=1
-            if msg[0]=="!":
-                specialIndex=0
-                start=1
-            if msg[0]==".":
-                specialIndex=0
-                start=1
-            if msg[-1]=="?":
+                specialOp=specialOperation[key]
+                break
+            if msg[-1]==key:
                 specialIndex=-1
                 end-=1
-            if msg[-1]=="!":
-                specialIndex=-1
-                end-=1
-            if msg[-1]==".":
-                specialIndex=-1
-                end-=1
+                specialOp=specialOperation[key]
+                break
         width=ord(msg.lower()[start])-97
         if width<0:
             await message.channel.send("Invalid format")
+            return
         height=int(msg.lower()[start+1:end])-1
         if specialIndex != None:
-            if "?" in msg:
-                games[str(message.author.id)]["gameObject"].questionMark(width, height)
-            if "!" in msg:
-                games[str(message.author.id)]["gameObject"].flagField(width, height)
-            if "." in msg:
-                games[str(message.author.id)]["gameObject"].clearMarking(width, height)
+            specialOp(width, height)
         else:
             games[str(message.author.id)]["gameObject"].openField(width, height)
     if not games[str(message.author.id)]["gameObject"].gameOver:
@@ -147,10 +164,14 @@ async def on_message(message):
         file=discord.File("{filename}".format(filename=filename))
         await message.channel.send(file=file, embed=embed)
         return
-    embed=discord.Embed(title="Minesweeper")
+    embed=discord.Embed(title="Minesweeper",
+                        description="Flags left: {nFlags}".format(nFlags=games[str(message.author.id)]["gameObject"].flagsLeft))
     filename=str(games[str(message.author.id)]["gameObject"])
     embed.set_image(url="attachment://{filename}".format(filename=filename))
     file=discord.File("{filename}".format(filename=filename))
-    await message.channel.send(file=file, embed=embed)
+    await message.delete()
+    previousMessage=games[str(message.author.id)]["message"]
+    games[str(message.author.id)]["message"]=await message.channel.send(file=file, embed=embed)
+    await previousMessage.delete()
 
 client.run(settings.discordBotToken)

@@ -133,5 +133,19 @@ numbers={
     8: Eight
 }
 
+numbersReverse={
+    One: 1,
+    Two: 2,
+    Three: 3,
+    Four: 4,
+    Five: 5,
+    Six: 6,
+    Seven: 7,
+    Eight: 8
+}
+
+def fieldReverse(fieldType):
+    return numbersReverse[fieldType]
+
 def field(num):
     return numbers[num]
