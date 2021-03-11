@@ -43,7 +43,7 @@ class Minesweeper:
             self.minefield[row][field]=FieldTypes.Question(bool(self.minefield[row][field]))
 
     def flagField(self, field, row):
-        if not self.minefield[row][field].opened and self.flagsLeft>0:
+        if not self.minefield[row][field].opened and self.flagsLeft>0 and not type(self.minefield[row][field])==FieldTypes.Flag:
             self.minefield[row][field]=FieldTypes.Flag(bool(self.minefield[row][field]))
             self.flagsLeft-=1
 
@@ -76,6 +76,9 @@ class Minesweeper:
         return
 
     def openFields(self, row, field):
+        if self.minesNear(row, field) != 0:
+            self.minefield[row][field]=FieldTypes.field(self.minesNear(row, field))()
+            return
         row_low = (row-1) if (row-1)>=0 else 0
         row_high = (row+2) if not (row+2)>self.height else (row+1)
         column_low = (field-1) if (field-1)>=0 else 0
@@ -134,27 +137,42 @@ class Minesweeper:
 
 
     def __str__(self):
-        img=Image.new('RGB', (self.width*16+24, self.height*16+16), 0xC0C0C0)
+        img=Image.new('RGB', (self.width*16+16, self.height*16+16), 0xC0C0C0)
+        status=Image.open("sprites/win.png" if self.checkWin() else ("sprites/lose.png" if self.gameOver else "sprites/alive.png"))
+        img.paste(status, (0, 0))
         for row in range(self.height):
             for column in range(self.width):
-                img.paste(Image.open(str(self.minefield[row][column])), (24+column*16, row*16+16))
+                img.paste(Image.open(str(self.minefield[row][column])), (16+column*16, row*16+16))
         d=ImageDraw.Draw(img)
         fnt = ImageFont.truetype('fonts/mine-sweeper.ttf', 10)
-        d.text((27, 0), " ".join([chr(i+97) for i in range(self.width)]), font=fnt, fill=0x0)
+        fntlarge = ImageFont.truetype('fonts/mine-sweeper.ttf', 7)
+        for i in range(19, self.width*16+19, 16):
+            j=(i-19)//16
+            d.text((i, 0), chr(j+97), font=fnt, fill=0x0)
+        # d.text((19, 0), " ".join([chr(i+97) for i in range(self.width)]), font=fnt, fill=0x0)
         for i in range(16, self.height*16+16, 16):
-            d.text((2, i+2), str(int((i-16)/16)+1),font=fnt, fill=0x0)
+            d.text( ((2 if int((i-16)/16)+1<10 else 1), (i+2 if int((i-16)/16)+1<10 else i+3)),
+                    str(int((i-16)/16)+1),
+                    font=(fnt if int((i-16)/16)+1<10 else fntlarge),
+                    fill=0x0)
         img.save("{id}.png".format(id=self.userid))
         return "{id}.png".format(id=self.userid)
 
     def __repr__(self):
-        img=Image.new('RGB', (self.width*16+24, self.height*16+16), 0xC0C0C0)
+        img=Image.new('RGB', (self.width*16+16, self.height*16+16), 0xC0C0C0)
+        status=Image.open("sprites/win.png" if self.checkWin() else ("sprites/lose.png" if self.gameOver else "sprites/alive.png"))
+        img.paste(status, (0, 0))
         for row in range(self.height):
             for column in range(self.width):
-                img.paste(Image.open(str(self.minefield[row][column])), (24+column*16, row*16+16))
+                img.paste(Image.open(str(self.minefield[row][column])), (16+column*16, row*16+16))
         d=ImageDraw.Draw(img)
         fnt = ImageFont.truetype('fonts/mine-sweeper.ttf', 10)
-        d.text((27, 0), " ".join([chr(i+97) for i in range(self.width)]), font=fnt, fill=0x0)
+        fntlarge = ImageFont.truetype('fonts/mine-sweeper.ttf', 7)
+        d.text((19, 0), " ".join([chr(i+97) for i in range(self.width)]), font=fnt, fill=0x0)
         for i in range(16, self.height*16+16, 16):
-            d.text((2, i+2), str(int((i-16)/16)+1),font=fnt, fill=0x0)
+            d.text( ((2 if int((i-16)/16)+1<10 else 1), (i+2 if int((i-16)/16)+1<10 else i+3)),
+                    str(int((i-16)/16)+1),
+                    font=(fnt if int((i-16)/16)+1<10 else fntlarge),
+                    fill=0x0)
         img.save("{id}.png".format(id=self.userid))
         return "{id}.png".format(id=self.userid)

@@ -150,7 +150,8 @@ async def on_message(message):
             games[str(message.author.id)]["gameObject"].openField(width, height)
     if not games[str(message.author.id)]["gameObject"].gameOver:
         if games[str(message.author.id)]["gameObject"].checkWin():
-            embed=discord.Embed(title="You won LOL")
+            embed=discord.Embed(title="You won LOL",
+                                description="Game duration: {time}s".format(time=time.time()-games[str(message.author.id)]["timeStart"]))
             filename=str(games[str(message.author.id)]["gameObject"])
             embed.set_image(url="attachment://{filename}".format(filename=filename))
             games[str(message.author.id)]["gameObject"].gameOver=True
@@ -158,7 +159,8 @@ async def on_message(message):
             await message.channel.send(file=file, embed=embed)
             return
     else:
-        embed=discord.Embed(title="You lost LOL")
+        embed=discord.Embed(title="You lost LOL",
+                            description="Game duration: {time}s".format(time=time.time()-games[str(message.author.id)]["timeStart"]))
         filename=str(games[str(message.author.id)]["gameObject"])
         embed.set_image(url="attachment://{filename}".format(filename=filename))
         file=discord.File("{filename}".format(filename=filename))
