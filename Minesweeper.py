@@ -115,6 +115,10 @@ class Minesweeper:
         return _numMarked
 
     def checkWin(self):
+        for r in range(self.height):
+            for c in range(self.width):
+                if self.minefield[r][c].triggered:
+                    return False
         ok=True
         for r in range(self.height):
             for c in range(self.width):

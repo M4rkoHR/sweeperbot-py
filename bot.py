@@ -87,6 +87,8 @@ async def _addChannel(ctx, *, channel):
     else:
         minesweeperChannel[str(ctx.guild.id)]=[str(ctx.message.channel_mentions[0].id)]
     await ctx.send("Minesweeper is now enabled in `{Channel}`".format(Channel=ctx.message.channel_mentions[0].name))
+    with open('minesweeperChannel.json', 'w') as json_file:
+        json.dump(minesweeperChannel, json_file) 
 
 @client.command(aliases=['removechannel', 'disablechannel'], brief='Set minesweeper channel')
 async def _removeChannel(ctx, *, channel):
