@@ -143,7 +143,7 @@ class Minesweeper:
 
     def __str__(self):
         img=Image.new('RGB', (self.width*16+16, self.height*16+16), 0xC0C0C0)
-        status=Image.open("sprites/win.png" if self.checkWin() else ("sprites/lose.png" if self.gameOver else "sprites/alive.png"))
+        status=Image.open("sprites/win.png" if self.checkWin() and self.gameOver else ("sprites/lose.png" if self.gameOver else "sprites/alive.png"))
         img.paste(status, (0, 0))
         for row in range(self.height):
             for column in range(self.width):
@@ -165,7 +165,7 @@ class Minesweeper:
 
     def __repr__(self):
         img=Image.new('RGB', (self.width*16+16, self.height*16+16), 0xC0C0C0)
-        status=Image.open("sprites/win.png" if self.checkWin() else ("sprites/lose.png" if self.gameOver else "sprites/alive.png"))
+        status=Image.open("sprites/win.png" if self.checkWin() and self.gameOver else ("sprites/lose.png" if self.gameOver else "sprites/alive.png"))
         img.paste(status, (0, 0))
         for row in range(self.height):
             for column in range(self.width):
