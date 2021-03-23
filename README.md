@@ -1,5 +1,5 @@
-# sweeperbot-py
-Discord Minesweeper bot, invite here: https://wikibot.tech/SweeperBot
+# [SweeperBot](https://top.gg/bot/817765850915274763)
+Discord Minesweeper bot, invite [here](https://top.gg/bot/817765850915274763/invite/)
 
 
 # Instructions
