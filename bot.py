@@ -4,6 +4,7 @@ import discord
 import settings
 import FieldTypes
 import time
+import TopGG
 from Minesweeper import Minesweeper
 from discord.ext import commands
 if settings.usePostgres:
@@ -33,6 +34,11 @@ async def on_ready():
         await ownerdm.send('minesweeperChannel.json loaded')
     except:
         await ownerdm.send('minesweeperChannel.json not found')
+    try:
+        print("Setting up TopGG cog")
+        TopGG.setup(client=client)
+    except:
+        print("Error setting up TopGG cog")
     print("Done")
 
 

@@ -4,3 +4,5 @@ discordBotToken="your token here"
 usePostgres=False
 #discord owner id
 ownerId=100000000000000000
+#TopGG bot token
+TopGGtoken="your topgg token here"

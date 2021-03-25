@@ -1,3 +1,6 @@
+[![Discord Bots](https://top.gg/api/widget/status/817765850915274763.svg)](https://top.gg/bot/817765850915274763) [![Discord Bots](https://top.gg/api/widget/servers/817765850915274763.svg?noavatar=true)](https://top.gg/bot/817765850915274763)
+
+
 # [SweeperBot](https://top.gg/bot/817765850915274763)
 Discord Minesweeper bot, invite [here](https://top.gg/bot/817765850915274763/invite/)
 
