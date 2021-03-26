@@ -25,6 +25,7 @@ async def on_ready():
     print(client.user.name)
     print(client.user.id)
     print('------')
+    await client.change_presence(activity=discord.Game(name='minesweeper | ms!help'))
     global ownerdm
     ownerdm = client.get_user(settings.ownerId)
     try:
