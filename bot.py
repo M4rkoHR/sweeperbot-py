@@ -11,7 +11,7 @@ if settings.usePostgres:
     from db_interface import backup, restore
     restore()
     
-intents = discord.Intents(messages=True, guilds=True, members=True)
+intents = discord.Intents(messages=True, guilds=True)
 client = commands.Bot(command_prefix = 'ms!', intents=intents, case_insensitive=True, help_command=None)
 minesweeperChannel={}
 games={}
@@ -27,7 +27,7 @@ async def on_ready():
     print('------')
     await client.change_presence(activity=discord.Game(name='minesweeper | ms!help'))
     global ownerdm
-    ownerdm = client.get_user(settings.ownerId)
+    ownerdm = await client.fetch_user(settings.ownerId)
     try:
         global minesweeperChannel
         with open('minesweeperChannel.json') as json_file:
@@ -68,6 +68,7 @@ async def _start(ctx, width=10, height=10, mines=10):
         pass
     else:
         await ctx.send("Minesweeper is not enabled in this channel, use `ms!addChannel #channel` to enable minesweeper for `#channel`")
+        return
     if mines>width*height:
         await ctx.send("Too many mines for a minefield of this size!")
         return
