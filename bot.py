@@ -61,6 +61,19 @@ async def help(ctx, *, command=None):
     embed.set_footer(text="Invite bot: https://wikibot.tech/SweeperBot")
     await ctx.send(embed=embed)
 
+@client.command(brief='Vote for bot')
+async def vote(ctx):
+    embed=discord.Embed(colour=0xc21e56,
+                        title="Vote for SweeperBot",
+                        url="https://top.gg/bot/817765850915274763/vote")
+    await ctx.send(embed=embed)
+
+@client.command(brief='Invite bot')
+async def invite(ctx):
+    embed=discord.Embed(colour=0xc21e56,
+                        title="Invite SweeperBot",
+                        url="https://top.gg/bot/817765850915274763/invite")
+    await ctx.send(embed=embed)
 
 @client.command(aliases=['start', 'game'], brief='Minesweeper duh')
 async def _start(ctx, width=10, height=10, mines=10):
