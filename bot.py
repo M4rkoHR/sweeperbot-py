@@ -49,9 +49,10 @@ async def help(ctx, *, command=None):
                         title="SweeperBot Help",
                         description="[FIELD] example: A1, E5, J10, f7, g3\n `|` between commands displays multiple ways of typing it",
                         url="https://wikibot.tech/SweeperBot")
-    embed.add_field(name="ms!start|game `width` `height` `mine count`", value="Starts a minesweeper game, if values left blank initializes a game with all values set to 10", inline=True)
+    embed.add_field(name="ms!start|restart `width` `height` `mine count`", value="Starts|Restarts a minesweeper game, if values left blank initializes a game with all values set to 10", inline=True)
     embed.add_field(name="ms!addChannel|channel|setChannel `#channel`", value="Enables minesweeper in `#channel`, disabled by default", inline=True)
     embed.add_field(name="ms!removeChannel|disableChannel `#channel`", value="Disables minesweeper in `#channel`", inline=True)
+    embed.add_field(name="ms!game|show|showgame", value="Shows your ongoing game, if it exists.", inline=False)
     embed.add_field(name="[FIELD]", value="Opens [FIELD] if you have an ongoing game and the tile is closed", inline=True)
     embed.add_field(name="![FIELD] | [FIELD]!", value="Flags [FIELD], you are unable to open it by mistake, use .[FIELD] | [FIELD]. to unflag it", inline=True)
     embed.add_field(name=".[FIELD] | [FIELD].", value="Unmark [FIELD] from question mark or flag", inline=True)
@@ -61,12 +62,14 @@ async def help(ctx, *, command=None):
     embed.set_footer(text="Invite bot: https://wikibot.tech/SweeperBot")
     await ctx.send(embed=embed)
 
+
 @client.command(brief='Vote for bot')
 async def vote(ctx):
     embed=discord.Embed(colour=0xc21e56,
                         title="Vote for SweeperBot",
                         url="https://top.gg/bot/817765850915274763/vote")
     await ctx.send(embed=embed)
+
 
 @client.command(brief='Invite bot')
 async def invite(ctx):
@@ -75,7 +78,8 @@ async def invite(ctx):
                         url="https://top.gg/bot/817765850915274763/invite")
     await ctx.send(embed=embed)
 
-@client.command(aliases=['start', 'game'], brief='Minesweeper duh')
+
+@client.command(aliases=['start', 'restart'], brief='Minesweeper duh')
 async def _start(ctx, width=10, height=10, mines=10):
     if "minesweeper" in ctx.channel.name or str(ctx.channel.id) in minesweeperChannel.get(str(ctx.guild.id), []):
         pass
@@ -85,8 +89,8 @@ async def _start(ctx, width=10, height=10, mines=10):
     if mines>width*height:
         await ctx.send("Too many mines for a minefield of this size!")
         return
-    if width>25:
-        await ctx.send("Width limit exceeded(max 25)")
+    if width>26:
+        await ctx.send("Width limit exceeded(max 26)")
         return
     if height>50:
         await ctx.send("Height limit exceeded(max 50)")
@@ -95,6 +99,7 @@ async def _start(ctx, width=10, height=10, mines=10):
     embed=discord.Embed(title="Minesweeper")
     filename=str(minefield)
     embed.set_image(url="attachment://{filename}".format(filename=filename))
+    embed.set_footer(text=ctx.author.display_name, icon_url=ctx.author.avatar_url)
     file=discord.File("{filename}".format(filename=filename))
     games[str(ctx.author.id)]={ "gameObject": minefield,
                                 "message": await ctx.send(file=file, embed=embed),
@@ -117,6 +122,24 @@ async def _removeChannel(ctx, *, channel):
         minesweeperChannel[str(ctx.guild.id)].remove(str(ctx.message.channel_mentions[0].id))
     await ctx.send("Minesweeper is now disabled in `{Channel}`".format(Channel=ctx.message.channel_mentions[0].name))
 
+@client.command(aliases=['showgame', 'game', 'show'], brief='See your game')
+async def _showGame(ctx):
+    try:
+        if games[str(ctx.author.id)]["gameObject"].gameOver:
+            await ctx.channel.send("Game over, use ms!start to make a new game")
+            return
+    except:
+        await ctx.channel.send("Use ms!start to make a new game")
+    embed=discord.Embed(title="Minesweeper",
+                        description="Flags left: {nFlags}".format(nFlags=games[str(ctx.author.id)]["gameObject"].flagsLeft))
+    filename=str(games[str(ctx.author.id)]["gameObject"])
+    embed.set_image(url="attachment://{filename}".format(filename=filename))
+    embed.set_footer(text=ctx.author.display_name, icon_url=ctx.author.avatar_url)
+    file=discord.File("{filename}".format(filename=filename))
+    previousMessage=games[str(ctx.author.id)]["message"]
+    games[str(ctx.author.id)]["message"]=await ctx.channel.send(file=file, embed=embed)
+    await previousMessage.delete()
+
 @client.event
 async def on_message(message):
     if message.author == client.user:
@@ -138,7 +161,7 @@ async def on_message(message):
         if len(msg)>4:
             return
     if games[str(message.author.id)]["gameObject"].gameOver:
-        await message.channel.send("Game over lol, use ms!start to make a new game")
+        await message.channel.send("Game over, use ms!start to make a new game")
         return
     specialOperation={
         "!": games[str(message.author.id)]["gameObject"].flagField,
@@ -173,19 +196,21 @@ async def on_message(message):
             games[str(message.author.id)]["gameObject"].openField(width, height)
     if not games[str(message.author.id)]["gameObject"].gameOver:
         if games[str(message.author.id)]["gameObject"].checkWin():
-            embed=discord.Embed(title="You won LOL",
+            embed=discord.Embed(title="<:win:839610773155217439> You won! <:win:839610773155217439>",
                                 description="Game duration: {time}s".format(time=time.time()-games[str(message.author.id)]["timeStart"]))
             filename=str(games[str(message.author.id)]["gameObject"])
             embed.set_image(url="attachment://{filename}".format(filename=filename))
+            embed.set_footer(text=message.author.display_name, icon_url=message.author.avatar_url)
             games[str(message.author.id)]["gameObject"].gameOver=True
             file=discord.File("{filename}".format(filename=filename))
             await message.channel.send(file=file, embed=embed)
             return
     else:
-        embed=discord.Embed(title="You lost LOL",
+        embed=discord.Embed(title="<:dead:839610784741195818> You lost! <:dead:839610784741195818>",
                             description="Game duration: {time}s".format(time=time.time()-games[str(message.author.id)]["timeStart"]))
         filename=str(games[str(message.author.id)]["gameObject"])
         embed.set_image(url="attachment://{filename}".format(filename=filename))
+        embed.set_footer(text=message.author.display_name, icon_url=message.author.avatar_url)
         file=discord.File("{filename}".format(filename=filename))
         await message.channel.send(file=file, embed=embed)
         return
@@ -193,6 +218,7 @@ async def on_message(message):
                         description="Flags left: {nFlags}".format(nFlags=games[str(message.author.id)]["gameObject"].flagsLeft))
     filename=str(games[str(message.author.id)]["gameObject"])
     embed.set_image(url="attachment://{filename}".format(filename=filename))
+    embed.set_footer(text=message.author.display_name, icon_url=message.author.avatar_url)
     file=discord.File("{filename}".format(filename=filename))
     await message.delete()
     previousMessage=games[str(message.author.id)]["message"]
