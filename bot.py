@@ -108,6 +108,11 @@ async def _start(ctx, width=10, height=10, mines=10):
 
 @client.command(aliases=['addchannel', 'channel', 'setchannel'], brief='Set minesweeper channel')
 async def _addChannel(ctx, *, channel):
+    if ctx.message.author.id == settings.ownerId or ctx.author.guild_permissions.manage_messages or ctx.author.guild_permissions.administrator:
+        pass
+    else:
+        await ctx.send("You don't have the permission!")
+        return
     if str(ctx.guild.id) in minesweeperChannel:
         minesweeperChannel[str(ctx.guild.id)].append(str(ctx.message.channel_mentions[0].id))
     else:
@@ -118,6 +123,11 @@ async def _addChannel(ctx, *, channel):
 
 @client.command(aliases=['removechannel', 'disablechannel'], brief='Set minesweeper channel')
 async def _removeChannel(ctx, *, channel):
+    if ctx.message.author.id == settings.ownerId or ctx.author.guild_permissions.manage_messages or ctx.author.guild_permissions.administrator:
+        pass
+    else:
+        await ctx.send("You don't have the permission!")
+        return
     if str(ctx.guild.id) in minesweeperChannel:
         minesweeperChannel[str(ctx.guild.id)].remove(str(ctx.message.channel_mentions[0].id))
     await ctx.send("Minesweeper is now disabled in `{Channel}`".format(Channel=ctx.message.channel_mentions[0].name))
@@ -131,7 +141,7 @@ async def _showGame(ctx):
     except:
         await ctx.channel.send("Use ms!start to make a new game")
     embed=discord.Embed(title="Minesweeper",
-                        description="Flags left: {nFlags}".format(nFlags=games[str(ctx.author.id)]["gameObject"].flagsLeft))
+                        description="Flags left: {nFlags}".format(nFlags=games[str(ctx.author.id)]["gameObject"].flagCount()))
     filename=str(games[str(ctx.author.id)]["gameObject"])
     embed.set_image(url="attachment://{filename}".format(filename=filename))
     embed.set_footer(text=ctx.author.display_name, icon_url=ctx.author.avatar_url)
@@ -215,7 +225,7 @@ async def on_message(message):
         await message.channel.send(file=file, embed=embed)
         return
     embed=discord.Embed(title="Minesweeper",
-                        description="Flags left: {nFlags}".format(nFlags=games[str(message.author.id)]["gameObject"].flagsLeft))
+                        description="Flags left: {nFlags}".format(nFlags=games[str(message.author.id)]["gameObject"].flagCount()))
     filename=str(games[str(message.author.id)]["gameObject"])
     embed.set_image(url="attachment://{filename}".format(filename=filename))
     embed.set_footer(text=message.author.display_name, icon_url=message.author.avatar_url)

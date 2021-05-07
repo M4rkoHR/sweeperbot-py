@@ -7,7 +7,6 @@ class Minesweeper:
     def __init__(self, width, height, mines, ctx):
         self.gameOver=False
         self.minecount=mines
-        self.flagsLeft=mines
         self.width=width
         self.height=height
         self.userid=ctx.author.id
@@ -16,6 +15,10 @@ class Minesweeper:
             row, field = (random.randrange(0,self.height), random.randrange(0,self.width))
             if not bool(self.minefield[row][field]):
                 self.minefield[row][field]=FieldTypes.Mine()
+        for row in range(self.height):
+                for column in range(self.width):
+                    if not bool(self.minefield[row][column]):
+                        self.minefield[row][column]=FieldTypes.Clear(self.minesNear(row, column))
 
     def mines(self):
         _mineCount=0
@@ -23,34 +26,38 @@ class Minesweeper:
             for field in row:
                 if bool(field): _mineCount+=1
         return _mineCount
+    
+    def flagCount(self):
+        nPlaced=0
+        for row in range(self.height):
+                for column in range(self.width):
+                    if self.minefield[row][column].flagged:
+                        nPlaced+=1
+        return self.minecount-nPlaced
 
     def openField(self, field, row):
-        if type(self.minefield[row][field]) in [FieldTypes.Question, FieldTypes.Flag]:
+        if self.minefield[row][field].flagged or self.minefield[row][field].questionmarked:
             return
         if bool(self.minefield[row][field]):
-            self.minefield[row][field]=FieldTypes.Mine()
             self.minefield[row][field].triggered=True
             for row in range(self.height):
                 for column in range(self.width):
                     self.minefield[row][column].gameOver=True
             self.gameOver=True
         else:
-            self.minefield[row][field]=FieldTypes.field(self.minesNear(row, field))()
+            self.minefield[row][field].opened=True
             self.openFields(row, field)
     
     def questionMark(self, field, row):
-        if not self.minefield[row][field].opened:
-            self.minefield[row][field]=FieldTypes.Question(bool(self.minefield[row][field]))
+        self.minefield[row][field].questionmark()
 
     def flagField(self, field, row):
-        if not self.minefield[row][field].opened and self.flagsLeft>0 and not type(self.minefield[row][field])==FieldTypes.Flag:
-            self.minefield[row][field]=FieldTypes.Flag(bool(self.minefield[row][field]))
-            self.flagsLeft-=1
+        self.minefield[row][field].flag()
 
     def forceOpen(self, field, row):
-        if type(self.minefield[row][field]) not in FieldTypes.numbersReverse:
+        if self.minefield[row][field].minecount == 0:
             return
-        if self.markedNear(row, field)<FieldTypes.fieldReverse(type(self.minefield[row][field])):
+        if self.markedNear(row, field)<self.minefield[row][field].minecount:
             return
         row_low = (row-1) if (row-1)>=0 else 0
         row_high = (row+2) if not (row+2)>self.height else (row+1)
@@ -58,26 +65,23 @@ class Minesweeper:
         column_high = (field+2) if not (field+2)>self.width else (field+1)
         for r in range(row_low, row_high):
             for c in range(column_low, column_high):
-                if not type(self.minefield[r][c]) in [FieldTypes.Flag, FieldTypes.Question] and not self.minefield[r][c].opened:
-                    if self.minesNear(r, c) == 0:
+                if not (self.minefield[r][c].flagged or self.minefield[r][c].questionmarked) and not self.minefield[r][c].opened:
+                    if self.minefield[r][c].minecount == 0:
                         self.minefield[r][c].opened=True
                         self.openFields(r, c)
                     else:
-                        self.minefield[r][c]=FieldTypes.field(self.minesNear(r, c))()
+                        self.minefield[r][c].opened=True
 
     def clearMarking(self, field, row):
-        if type(self.minefield[row][field]) in [FieldTypes.Question, FieldTypes.Flag]:
-            if type(self.minefield[row][field])==FieldTypes.Flag:
-                self.flagsLeft+=1
-            if bool(self.minefield[row][field]):
-                self.minefield[row][field]=FieldTypes.Mine()
-            else:
-                self.minefield[row][field]=FieldTypes.Clear()
+        if self.minefield[row][field].flagged:
+            self.minefield[row][field].flagged=False
+        if self.minefield[row][field].questionmarked:
+            self.minefield[row][field].questionmarked=False
         return
 
     def openFields(self, row, field):
-        if self.minesNear(row, field) != 0:
-            self.minefield[row][field]=FieldTypes.field(self.minesNear(row, field))()
+        if self.minefield[row][field].minecount != 0:
+            self.minefield[row][field].opened=True
             return
         row_low = (row-1) if (row-1)>=0 else 0
         row_high = (row+2) if not (row+2)>self.height else (row+1)
@@ -86,11 +90,11 @@ class Minesweeper:
         for r in range(row_low, row_high):
             for c in range(column_low, column_high):
                 if not bool(self.minefield[r][c]) and not self.minefield[r][c].opened:
-                    if self.minesNear(r, c) == 0:
+                    if self.minefield[r][c].minecount == 0:
                         self.minefield[r][c].opened=True
                         self.openFields(r, c)
                     else:
-                        self.minefield[r][c]=FieldTypes.field(self.minesNear(r, c))()
+                        self.minefield[r][c].opened=True
 
     def minesNear(self, row, field):
         row_low = (row-1) if (row-1)>=0 else 0
@@ -111,13 +115,13 @@ class Minesweeper:
         _numMarked=0
         for r in range(row_low, row_high):
             for c in range(column_low, column_high):
-                if type(self.minefield[r][c]) in [FieldTypes.Flag, FieldTypes.Question]: _numMarked+=1
+                if self.minefield[r][c].flagged or self.minefield[r][c].questionmarked: _numMarked+=1
         return _numMarked
 
     def checkWin(self):
         for r in range(self.height):
             for c in range(self.width):
-                if bool(self.minefield[r][c]):
+                if type(self.minefield[r][c])==FieldTypes.Mine:
                     if self.minefield[r][c].triggered:
                         return False
         ok=True
@@ -134,7 +138,7 @@ class Minesweeper:
         for r in range(self.height):
             for c in range(self.width):
                 if bool(self.minefield[r][c]):
-                    if type(self.minefield[r][c])==FieldTypes.Flag:
+                    if self.minefield[r][c].flagged:
                         pass
                     else:
                         ok=False
@@ -164,20 +168,4 @@ class Minesweeper:
         return "{id}.png".format(id=self.userid)
 
     def __repr__(self):
-        img=Image.new('RGB', (self.width*16+16, self.height*16+16), 0xC0C0C0)
-        status=Image.open("sprites/win.png" if self.checkWin() and self.gameOver else ("sprites/lose.png" if self.gameOver else "sprites/alive.png"))
-        img.paste(status, (0, 0))
-        for row in range(self.height):
-            for column in range(self.width):
-                img.paste(Image.open(str(self.minefield[row][column])), (16+column*16, row*16+16))
-        d=ImageDraw.Draw(img)
-        fnt = ImageFont.truetype('fonts/mine-sweeper.ttf', 10)
-        fntlarge = ImageFont.truetype('fonts/mine-sweeper.ttf', 7)
-        d.text((19, 0), " ".join([chr(i+97) for i in range(self.width)]), font=fnt, fill=0x0)
-        for i in range(16, self.height*16+16, 16):
-            d.text( ((2 if int((i-16)/16)+1<10 else 1), (i+2 if int((i-16)/16)+1<10 else i+3)),
-                    str(int((i-16)/16)+1),
-                    font=(fnt if int((i-16)/16)+1<10 else fntlarge),
-                    fill=0x0)
-        img.save("{id}.png".format(id=self.userid))
-        return "{id}.png".format(id=self.userid)
+        return self.__str__()
