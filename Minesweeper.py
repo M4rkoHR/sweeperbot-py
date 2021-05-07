@@ -52,6 +52,8 @@ class Minesweeper:
         self.minefield[row][field].questionmark()
 
     def flagField(self, field, row):
+        if self.flagCount()<=0:
+            return
         self.minefield[row][field].flag()
 
     def forceOpen(self, field, row):
