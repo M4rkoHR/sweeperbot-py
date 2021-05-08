@@ -1,7 +1,8 @@
-import FieldTypes
+import sys
 import random
+import FieldTypes
 from PIL import Image, ImageDraw, ImageFont
-
+sys.setrecursionlimit(2000)
 
 class Minesweeper:
     def __init__(self, width, height, mines, ctx):

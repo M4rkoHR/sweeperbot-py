@@ -49,7 +49,7 @@ async def help(ctx, *, command=None):
                         title="SweeperBot Help",
                         description="[FIELD] example: A1, E5, J10, f7, g3\n `|` between commands displays multiple ways of typing it",
                         url="https://wikibot.tech/SweeperBot")
-    embed.add_field(name="ms!start|restart `width` `height` `mine count`", value="Starts|Restarts a minesweeper game, if values left blank initializes a game with all values set to 10", inline=True)
+    embed.add_field(name="ms!start|restart `width` `height` `mine count`", value="Starts|Restarts a minesweeper game, if values left blank initializes a game with default values (10 width, 10 height, 10% mines)", inline=True)
     embed.add_field(name="ms!addChannel|channel|setChannel `#channel`", value="Enables minesweeper in `#channel`, disabled by default", inline=True)
     embed.add_field(name="ms!removeChannel|disableChannel `#channel`", value="Disables minesweeper in `#channel`", inline=True)
     embed.add_field(name="ms!game|show|showgame", value="Shows your ongoing game, if it exists.", inline=False)
@@ -79,8 +79,10 @@ async def invite(ctx):
     await ctx.send(embed=embed)
 
 
-@client.command(aliases=['start', 'restart'], brief='Minesweeper duh')
-async def _start(ctx, width=10, height=10, mines=10):
+@client.command(aliases=['start', 'restart'], brief='Start a minesweeper game')
+async def _start(ctx, width=10, height=10, mines=None):
+    if mines==None:
+        mines=(width*height)//10
     if "minesweeper" in ctx.channel.name or str(ctx.channel.id) in minesweeperChannel.get(str(ctx.guild.id), []):
         pass
     else:
