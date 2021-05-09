@@ -147,6 +147,11 @@ class Minesweeper:
                         ok=False
         return ok
 
+    def forfeit(self):
+        for row in range(self.height):
+            for column in range(self.width):
+                self.minefield[row][column].gameOver=True
+        self.gameOver=True
 
     def __str__(self):
         img=Image.new('RGB', (self.width*16+16, self.height*16+16), 0xC0C0C0)

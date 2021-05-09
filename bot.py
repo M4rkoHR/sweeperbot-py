@@ -11,10 +11,11 @@ if settings.usePostgres:
     from db_interface import backup, restore
     restore()
     
-intents = discord.Intents(messages=True, guilds=True)
+intents = discord.Intents(messages=True, guilds=True, members=True)
 client = commands.Bot(command_prefix = 'ms!', intents=intents, case_insensitive=True, help_command=None)
 minesweeperChannel={}
 games={}
+mp_games={}
 ownerdm=None
 
 
@@ -98,7 +99,8 @@ async def _start(ctx, width=10, height=10, mines=None):
         await ctx.send("Height limit exceeded(max 50)")
         return
     minefield=Minesweeper(width, height, mines, ctx)
-    embed=discord.Embed(title="Minesweeper")
+    embed=discord.Embed(title="Minesweeper",
+                        description="Flags left: {nFlags}".format(nFlags=mines))
     filename=str(minefield)
     embed.set_image(url="attachment://{filename}".format(filename=filename))
     embed.set_footer(text=ctx.author.display_name, icon_url=ctx.author.avatar_url)
@@ -106,6 +108,91 @@ async def _start(ctx, width=10, height=10, mines=None):
     games[str(ctx.author.id)]={ "gameObject": minefield,
                                 "message": await ctx.send(file=file, embed=embed),
                                 "timeStart": time.time()
+    }
+
+
+@client.command(aliases=['end', 'finish'], brief='Start a minesweeper game')
+async def _end(ctx):
+    if games.get(str(ctx.user.id), False):
+            if games[str(ctx.user.id)]["gameObject"].gameOver or (time.time()-games[str(ctx.user.id)]["timeStart"]):
+                games[str(ctx.author.id)]["gameObject"].forfeit()
+                embed=discord.Embed(title="<:dead:839610784741195818> You forfeited! <:dead:839610784741195818>",
+                            description="Game duration: {time}s".format(time=time.time()-games[str(ctx.author.id)]["timeStart"]))
+                filename=str(games[str(ctx.author.id)]["gameObject"])
+                embed.set_image(url="attachment://{filename}".format(filename=filename))
+                embed.set_footer(text=ctx.author.display_name, icon_url=ctx.author.avatar_url)
+                file=discord.File("{filename}".format(filename=filename))
+                await ctx.channel.send(file=file, embed=embed)
+                return
+    else:
+        await ctx.send("You don't have an ongoing game")
+
+@client.command(aliases=['leave', 'abandon'], brief='Start a minesweeper game')
+async def _leave(ctx):
+    ingame=False
+    for game in mp_games:
+        if str(ctx.author.id) in game:
+            ingame=True
+            break
+    if not ingame:
+        await ctx.send("You aren't a member of an ongoing multiplayer game")
+        return
+    newgame=list(game)
+    newgame.remove(str(ctx.author.id))
+    newindex=0
+    newgame=tuple(newgame)
+    mp_games[newgame]=mp_games.pop(game)
+    mp_games[newgame]["playercount"]-=1
+    mp_games[newgame]["nextPlayer"]=newindex
+    
+        
+
+@client.command(aliases=['multiplayer', 'multi'], brief='Start a minesweeper game')
+async def _multiplayer(ctx, width=10, height=10, mines=None):
+    if mines==None:
+        mines=(width*height)//10
+    if "minesweeper" in ctx.channel.name or str(ctx.channel.id) in minesweeperChannel.get(str(ctx.guild.id), []):
+        pass
+    else:
+        await ctx.send("Minesweeper is not enabled in this channel, use `ms!addChannel #channel` to enable minesweeper for `#channel`")
+        return
+    if mines>width*height:
+        await ctx.send("Too many mines for a minefield of this size!")
+        return
+    if width>26:
+        await ctx.send("Width limit exceeded(max 26)")
+        return
+    if height>50:
+        await ctx.send("Height limit exceeded(max 50)")
+        return
+    if not ctx.message.mentions:
+        await ctx.send("You haven't mentioned anyone to play with")
+        return
+    playercount=len(ctx.message.mentions)+1
+    players=[str(ctx.author.id)]
+    for usr in ctx.message.mentions:
+        for game in mp_games:
+            if str(usr.id) in game and not mp_games[game]["gameObject"].gameOver:
+                await ctx.send("User has not yet finished their multiplayer game, use ms!leave to leave")
+                return
+        if games.get(str(usr.id), False):
+            if games[str(usr.id)]["gameObject"].gameOver or (time.time()-games[str(usr.id)]["timeStart"])>3600:
+                await ctx.send("User has not yet finished their game, use ms!end to finish your game")
+                return
+        players.append(str(usr.id))
+    players=tuple(players)
+    minefield=Minesweeper(width, height, mines, ctx)
+    embed=discord.Embed(title="Minesweeper",
+                        description="Flags left: {nFlags}".format(nFlags=mines))
+    filename=str(minefield)
+    embed.set_image(url="attachment://{filename}".format(filename=filename))
+    embed.set_footer(text="{user}'s turn".format(user=ctx.author.display_name), icon_url=ctx.author.avatar_url)
+    file=discord.File("{filename}".format(filename=filename))
+    mp_games[players]={"gameObject": minefield,
+                    "message": await ctx.send(file=file, embed=embed),
+                    "timeStart": time.time(),
+                    "playercount": playercount,
+                    "nextPlayer": 0
     }
 
 @client.command(aliases=['addchannel', 'channel', 'setchannel'], brief='Set minesweeper channel')
@@ -161,6 +248,22 @@ async def on_message(message):
         pass
     else:
         return
+    gameInstance=None
+    mp=False
+    ingame=False
+    game=None
+    for game in mp_games:
+        if str(message.author.id) in game and not mp_games[game].gameOver:
+            gameInstance=mp_games[game]
+            mp=True
+            ingame=True
+            if str(message.author.id)!=game[gameInstance["nextPlayer"]]:
+                await message.channel.send("It's not your turn!")
+                return
+            break
+    if not ingame:
+        gameInstance=games[str(message.author.id)]
+        return
     numbers=False
     for letter in message.content:
         if 57>=ord(letter)>=48:
@@ -172,14 +275,14 @@ async def on_message(message):
     for msg in message.content.split():
         if len(msg)>4:
             return
-    if games[str(message.author.id)]["gameObject"].gameOver:
+    if gameInstance["gameObject"].gameOver:
         await message.channel.send("Game over, use ms!start to make a new game")
         return
     specialOperation={
-        "!": games[str(message.author.id)]["gameObject"].flagField,
-        "?": games[str(message.author.id)]["gameObject"].questionMark,
-        ".": games[str(message.author.id)]["gameObject"].clearMarking,
-        "@": games[str(message.author.id)]["gameObject"].forceOpen
+        "!": gameInstance["gameObject"].flagField,
+        "?": gameInstance["gameObject"].questionMark,
+        ".": gameInstance["gameObject"].clearMarking,
+        "@": gameInstance["gameObject"].forceOpen
     }
     for msg in message.content.split():
         start=0
@@ -205,36 +308,46 @@ async def on_message(message):
         if specialIndex != None:
             specialOp(width, height)
         else:
-            games[str(message.author.id)]["gameObject"].openField(width, height)
-    if not games[str(message.author.id)]["gameObject"].gameOver:
-        if games[str(message.author.id)]["gameObject"].checkWin():
+            gameInstance["gameObject"].openField(width, height)
+    if not gameInstance["gameObject"].gameOver:
+        if gameInstance["gameObject"].checkWin():
             embed=discord.Embed(title="<:win:839610773155217439> You won! <:win:839610773155217439>",
-                                description="Game duration: {time}s".format(time=time.time()-games[str(message.author.id)]["timeStart"]))
-            filename=str(games[str(message.author.id)]["gameObject"])
+                                description="Game duration: {time}s".format(time=time.time()-gameInstance["timeStart"]))
+            filename=str(gameInstance["gameObject"])
             embed.set_image(url="attachment://{filename}".format(filename=filename))
-            embed.set_footer(text=message.author.display_name, icon_url=message.author.avatar_url)
-            games[str(message.author.id)]["gameObject"].gameOver=True
+            if mp:
+                embed.set_footer(text=" ".join(client.get_user(int(userid)).display_name for userid in game))
+            else:
+                embed.set_footer(text=message.author.display_name, icon_url=message.author.avatar_url)
+            gameInstance["gameObject"].gameOver=True
             file=discord.File("{filename}".format(filename=filename))
             await message.channel.send(file=file, embed=embed)
             return
     else:
         embed=discord.Embed(title="<:dead:839610784741195818> You lost! <:dead:839610784741195818>",
-                            description="Game duration: {time}s".format(time=time.time()-games[str(message.author.id)]["timeStart"]))
-        filename=str(games[str(message.author.id)]["gameObject"])
+                            description="Game duration: {time}s".format(time=time.time()-gameInstance["timeStart"]))
+        filename=str(gameInstance["gameObject"])
         embed.set_image(url="attachment://{filename}".format(filename=filename))
-        embed.set_footer(text=message.author.display_name, icon_url=message.author.avatar_url)
+        if mp:
+            embed.set_footer(text=" ".join((str(client.get_user(int(userid))) for userid in game)))
+        else:
+            embed.set_footer(text=message.author.display_name, icon_url=message.author.avatar_url)
         file=discord.File("{filename}".format(filename=filename))
         await message.channel.send(file=file, embed=embed)
         return
     embed=discord.Embed(title="Minesweeper",
-                        description="Flags left: {nFlags}".format(nFlags=games[str(message.author.id)]["gameObject"].flagCount()))
-    filename=str(games[str(message.author.id)]["gameObject"])
+                        description="Flags left: {nFlags}".format(nFlags=gameInstance["gameObject"].flagCount()))
+    filename=str(gameInstance["gameObject"])
     embed.set_image(url="attachment://{filename}".format(filename=filename))
-    embed.set_footer(text=message.author.display_name, icon_url=message.author.avatar_url)
+    if mp:
+        gameInstance["nextPlayer"]=(gameInstance["nextPlayer"]+1)%gameInstance["playercount"]
+        embed.set_footer(text="{user}'s turn".format(user=client.get_user(int(game[gameInstance["nextPlayer"]])).display_name))
+    else:
+        embed.set_footer(text=message.author.display_name, icon_url=message.author.avatar_url)
     file=discord.File("{filename}".format(filename=filename))
     await message.delete()
-    previousMessage=games[str(message.author.id)]["message"]
-    games[str(message.author.id)]["message"]=await message.channel.send(file=file, embed=embed)
+    previousMessage=gameInstance["message"]
+    gameInstance["message"]=await message.channel.send(file=file, embed=embed)
     await previousMessage.delete()
 
 client.run(settings.discordBotToken)
