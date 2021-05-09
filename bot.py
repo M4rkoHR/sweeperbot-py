@@ -18,6 +18,12 @@ games={}
 mp_games={}
 ownerdm=None
 
+def isInt(string):
+    try:
+        int(string)
+        return True
+    except:
+        return False
 
 
 @client.event
@@ -51,6 +57,9 @@ async def help(ctx, *, command=None):
                         description="[FIELD] example: A1, E5, J10, f7, g3\n `|` between commands displays multiple ways of typing it",
                         url="https://wikibot.tech/SweeperBot")
     embed.add_field(name="ms!start|restart `width` `height` `mine count`", value="Starts|Restarts a minesweeper game, if values left blank initializes a game with default values (10 width, 10 height, 10% mines)", inline=True)
+    embed.add_field(name="ms!multiplayer|multi `width` `height` `mine count` `@user1  @user2...`", value="Starts a multiplayer minesweeper game, if values left blank initializes a game with default values (10 width, 10 height, 10% mines)", inline=True)
+    embed.add_field(name="ms!leave", value="Leave a multiplayer game, other players are left to finish it", inline=True)
+    embed.add_field(name="ms!end", value="Forfeit a solo game, shows mine locations", inline=True)
     embed.add_field(name="ms!addChannel|channel|setChannel `#channel`", value="Enables minesweeper in `#channel`, disabled by default", inline=True)
     embed.add_field(name="ms!removeChannel|disableChannel `#channel`", value="Disables minesweeper in `#channel`", inline=True)
     embed.add_field(name="ms!game|show|showgame", value="Shows your ongoing game, if it exists.", inline=False)
@@ -84,6 +93,8 @@ async def invite(ctx):
 async def _start(ctx, width=10, height=10, mines=None):
     if mines==None:
         mines=(width*height)//10
+    else:
+        mines=int(mines)
     if "minesweeper" in ctx.channel.name or str(ctx.channel.id) in minesweeperChannel.get(str(ctx.guild.id), []):
         pass
     else:
@@ -113,8 +124,8 @@ async def _start(ctx, width=10, height=10, mines=None):
 
 @client.command(aliases=['end', 'finish'], brief='Start a minesweeper game')
 async def _end(ctx):
-    if games.get(str(ctx.user.id), False):
-            if games[str(ctx.user.id)]["gameObject"].gameOver or (time.time()-games[str(ctx.user.id)]["timeStart"]):
+    if games.get(str(ctx.author.id), False):
+            if games[str(ctx.author.id)]["gameObject"].gameOver or (time.time()-games[str(ctx.author.id)]["timeStart"]):
                 games[str(ctx.author.id)]["gameObject"].forfeit()
                 embed=discord.Embed(title="<:dead:839610784741195818> You forfeited! <:dead:839610784741195818>",
                             description="Game duration: {time}s".format(time=time.time()-games[str(ctx.author.id)]["timeStart"]))
@@ -148,7 +159,22 @@ async def _leave(ctx):
         
 
 @client.command(aliases=['multiplayer', 'multi'], brief='Start a minesweeper game')
-async def _multiplayer(ctx, width=10, height=10, mines=None):
+async def _multiplayer(ctx, *args):
+    width=None;height=None;mines=None
+    for i in range(3):
+        if isInt(args[i]):
+            if i == 0:
+                width=int(args[i])
+            elif i == 1:
+                height=int(args[i])
+            else:
+                mines=int(args[i])
+        else:
+            break
+    if width==None:
+        width=10
+    if height==None:
+        height=10 
     if mines==None:
         mines=(width*height)//10
     if "minesweeper" in ctx.channel.name or str(ctx.channel.id) in minesweeperChannel.get(str(ctx.guild.id), []):
@@ -172,9 +198,10 @@ async def _multiplayer(ctx, width=10, height=10, mines=None):
     players=[str(ctx.author.id)]
     for usr in ctx.message.mentions:
         for game in mp_games:
-            if str(usr.id) in game and not mp_games[game]["gameObject"].gameOver:
-                await ctx.send("User has not yet finished their multiplayer game, use ms!leave to leave")
-                return
+            if str(usr.id) in game:
+                if not mp_games[game]["gameObject"].gameOver:
+                    await ctx.send("User has not yet finished their multiplayer game, use ms!leave to leave")
+                    return
         if games.get(str(usr.id), False):
             if games[str(usr.id)]["gameObject"].gameOver or (time.time()-games[str(usr.id)]["timeStart"])>3600:
                 await ctx.send("User has not yet finished their game, use ms!end to finish your game")
@@ -253,7 +280,7 @@ async def on_message(message):
     ingame=False
     game=None
     for game in mp_games:
-        if str(message.author.id) in game and not mp_games[game].gameOver:
+        if str(message.author.id) in game and not mp_games[game]["gameObject"].gameOver:
             gameInstance=mp_games[game]
             mp=True
             ingame=True
