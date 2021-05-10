@@ -125,7 +125,7 @@ async def _start(ctx, width=10, height=10, mines=None):
 @client.command(aliases=['end', 'finish'], brief='Start a minesweeper game')
 async def _end(ctx):
     if games.get(str(ctx.author.id), False):
-            if games[str(ctx.author.id)]["gameObject"].gameOver or (time.time()-games[str(ctx.author.id)]["timeStart"]):
+            if not games[str(ctx.author.id)]["gameObject"].gameOver:
                 games[str(ctx.author.id)]["gameObject"].forfeit()
                 embed=discord.Embed(title="<:dead:839610784741195818> You forfeited! <:dead:839610784741195818>",
                             description="Game duration: {time}s".format(time=time.time()-games[str(ctx.author.id)]["timeStart"]))
@@ -135,6 +135,8 @@ async def _end(ctx):
                 file=discord.File("{filename}".format(filename=filename))
                 await ctx.channel.send(file=file, embed=embed)
                 return
+            else:
+                await ctx.send("You don't have an ongoing game")
     else:
         await ctx.send("You don't have an ongoing game")
 
@@ -155,6 +157,9 @@ async def _leave(ctx):
     mp_games[newgame]=mp_games.pop(game)
     mp_games[newgame]["playercount"]-=1
     mp_games[newgame]["nextPlayer"]=newindex
+    if mp_games[newgame]["playercount"]==1:
+        mp_games.pop(newgame)
+    await ctx.send("You successfully left a multiplayer game")
     
         
 
@@ -203,10 +208,14 @@ async def _multiplayer(ctx, *args):
                     await ctx.send("User has not yet finished their multiplayer game, use ms!leave to leave")
                     return
         if games.get(str(usr.id), False):
-            if games[str(usr.id)]["gameObject"].gameOver or (time.time()-games[str(usr.id)]["timeStart"])>3600:
+            if not games[str(usr.id)]["gameObject"].gameOver or (time.time()-games[str(usr.id)]["timeStart"])<-3600:
                 await ctx.send("User has not yet finished their game, use ms!end to finish your game")
                 return
-        players.append(str(usr.id))
+        if str(usr.id) not in players:
+            players.append(str(usr.id))
+    if len(players)==1:
+        await ctx.send("Too few players, you can't play by yourself, use ms!start for a solo game")
+        return
     players=tuple(players)
     minefield=Minesweeper(width, height, mines, ctx)
     embed=discord.Embed(title="Minesweeper",
@@ -285,12 +294,12 @@ async def on_message(message):
             mp=True
             ingame=True
             if str(message.author.id)!=game[gameInstance["nextPlayer"]]:
-                await message.channel.send("It's not your turn!")
+                if len(message.content)<5:
+                    await message.channel.send("It's not your turn!")
                 return
             break
     if not ingame:
         gameInstance=games[str(message.author.id)]
-        return
     numbers=False
     for letter in message.content:
         if 57>=ord(letter)>=48:
@@ -368,7 +377,7 @@ async def on_message(message):
     embed.set_image(url="attachment://{filename}".format(filename=filename))
     if mp:
         gameInstance["nextPlayer"]=(gameInstance["nextPlayer"]+1)%gameInstance["playercount"]
-        embed.set_footer(text="{user}'s turn".format(user=client.get_user(int(game[gameInstance["nextPlayer"]])).display_name))
+        embed.set_footer(text="{user}'s turn".format(user=client.get_user(int(game[gameInstance["nextPlayer"]])).display_name), icon_url=client.get_user(int(game[gameInstance["nextPlayer"]])).avatar_url)
     else:
         embed.set_footer(text=message.author.display_name, icon_url=message.author.avatar_url)
     file=discord.File("{filename}".format(filename=filename))

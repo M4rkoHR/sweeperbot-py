@@ -4,6 +4,8 @@
 # [SweeperBot](https://top.gg/bot/817765850915274763)
 Discord Minesweeper bot, invite [here](https://top.gg/bot/817765850915274763/invite/)
 
+## Supporters
+[MusicTheorist](https://github.com/MusicTheorist) (Summer Dragonfly#8765)
 
 # Instructions
 
