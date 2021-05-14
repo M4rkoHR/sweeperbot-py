@@ -11,6 +11,7 @@ class Minesweeper:
         self.width=width
         self.height=height
         self.userid=ctx.author.id
+        self.win=False
         self.minefield=[[FieldTypes.Clear() for x in range(width)] for y in range(height)]
         while self.mines()<self.minecount:
             row, field = (random.randrange(0,self.height), random.randrange(0,self.width))
@@ -136,6 +137,7 @@ class Minesweeper:
                     else:
                         ok=False
         if ok:
+            self.win=True
             return True
         ok=True
         for r in range(self.height):
@@ -145,6 +147,8 @@ class Minesweeper:
                         pass
                     else:
                         ok=False
+        if ok:
+            self.win=True
         return ok
 
     def forfeit(self):
@@ -155,7 +159,7 @@ class Minesweeper:
 
     def __str__(self):
         img=Image.new('RGB', (self.width*16+16, self.height*16+16), 0xC0C0C0)
-        status=Image.open("sprites/win.png" if self.checkWin() and self.gameOver else ("sprites/lose.png" if self.gameOver else "sprites/alive.png"))
+        status=Image.open("sprites/win.png" if self.win else ("sprites/lose.png" if self.gameOver else "sprites/alive.png"))
         img.paste(status, (0, 0))
         for row in range(self.height):
             for column in range(self.width):
